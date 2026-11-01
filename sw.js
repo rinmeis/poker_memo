@@ -1,6 +1,6 @@
 // オフライン動作用：本体ファイルをキャッシュし、開くたびに裏で最新版を取りに行く
 // index.html などを変更したら VERSION を上げる
-const VERSION = 'pm-v1';
+const VERSION = 'pm-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

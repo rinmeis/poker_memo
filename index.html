@@ -15,7 +15,7 @@
 <title>ポーカー戦略メモ</title>
 <style>
 :root{
-  --bg:#0E241D; --panel:#153329; --panel2:#1B3E32; --gold:#E2B455; --face:#F6F1E4; --red:#B3261E;
+  --bg:#0E241D; --panel:#153329; --panel2:#1B3E32; --gold:#E2B455; --face:#F6F1E4; --red:#B3261E; --blue:#1F6FD6; --green:#2E8B3D;
   --text:#F2EEDC; --muted:#9FB5AB; --line:rgba(255,255,255,.12); --danger:#E8756B;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -71,7 +71,9 @@ svg{display:block}
 .pc{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;background:var(--face);color:#1b1b1b;border-radius:6px;border:1px solid rgba(0,0,0,.25);font-weight:700;line-height:1.05;flex:none}
 .pc b{font-weight:700}
 .pc i{font-style:normal}
-.pc.red{color:var(--red)}
+.pc.sh{color:var(--red)}
+.pc.sd{color:var(--blue)}
+.pc.sc{color:var(--green)}
 .pc.x{background:transparent;border:1.5px dashed var(--gold);color:var(--gold)}
 .pc.empty{background:rgba(255,255,255,.04);border:1.5px dashed rgba(255,255,255,.28);color:var(--muted);font-weight:400}
 .pc.empty.off{opacity:.35}
@@ -134,7 +136,9 @@ textarea.body:focus{border-color:var(--gold)}
 .sgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px}
 .ck{min-height:46px;border-radius:8px;background:var(--face);color:#1b1b1b;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:1px;border:2px solid transparent}
 .ck i{font-style:normal;font-size:14px}
-.ck.red{color:var(--red)}
+.ck.sh{color:var(--red)}
+.ck.sd{color:var(--blue)}
+.ck.sc{color:var(--green)}
 .ck.dis{opacity:.22;cursor:default}
 .ck.sel{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
 .sh-f{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line);flex:none}
@@ -315,8 +319,7 @@ const expanded = new Set();
 /* ---------- 部品 ---------- */
 function cardEl(c, cls = 'sm'){
   if (c === 'X') return `<span class="pc x ${cls}"><b>X</b></span>`;
-  const red = c[1] === 'h' || c[1] === 'd';
-  return `<span class="pc ${red?'red ':''}${cls}"><b>${c[0]==='T'?'10':c[0]}</b><i>${SYM[c[1]]}</i></span>`;
+  return `<span class="pc s${c[1]} ${cls}"><b>${c[0]==='T'?'10':c[0]}</b><i>${SYM[c[1]]}</i></span>`;
 }
 const ico = {
   list:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>',
@@ -464,7 +467,7 @@ function openSheet(k, i){
   const used = usedCards(target);
   $('#sh-grid').innerHTML = SUITS.map(([s,sym]) => `<div class="sgrid">${RANKS.map(r => {
     const c = r + s, dis = used.has(c);
-    return `<button class="ck ${s==='h'||s==='d'?'red':''}${dis?' dis':''}" data-a="pick" data-c="${c}" ${dis?'disabled':''} aria-label="${r==='T'?'10':r}${sym}">${r==='T'?'10':r}<i>${sym}</i></button>`;
+    return `<button class="ck s${s}${dis?' dis':''}" data-a="pick" data-c="${c}" ${dis?'disabled':''} aria-label="${r==='T'?'10':r}${sym}">${r==='T'?'10':r}<i>${sym}</i></button>`;
   }).join('')}</div>`).join('');
   updateSheet();
   $('#sheet-bg').hidden = false;
