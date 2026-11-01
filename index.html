@@ -93,6 +93,14 @@ h2.lb{margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--muted);letter
 .slot:disabled{cursor:default}
 .slot:not(:disabled):active .pc{transform:scale(.96)}
 .gap{margin-top:10px}
+.slot.dim{opacity:.4}
+.sstrip{display:flex;gap:8px;padding:10px 14px 2px;flex:none}
+.pksw{width:54px;text-align:center;font-size:11px;color:var(--muted)}
+.pks{display:block;width:100%;border-radius:8px}
+.pks .pc{width:100%;aspect-ratio:3/4;font-size:20px;border-radius:8px}
+.pks .pc i{font-size:.85em}
+.pks.cur .pc{box-shadow:0 0 0 2px var(--gold)}
+.pksw span{display:block;margin-top:2px}
 
 .tagin{display:flex;gap:8px;margin:2px 0 10px}
 .tagin input{flex:1;min-width:0;min-height:44px;padding:0 12px;border-radius:12px;background:var(--panel);border:1px solid var(--gold);font-size:16px;outline:none}
@@ -210,9 +218,10 @@ textarea.body:focus{border-color:var(--gold)}
 
 <div class="bg" id="sheet-bg" hidden>
   <div class="sheet" role="dialog" aria-modal="true">
-    <div class="sh-h"><h3 id="sh-title"></h3><span class="pv" id="sh-pv"></span><button class="ib" data-a="sheet-close" aria-label="閉じる"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sh-h"><h3 id="sh-title"></h3><button class="ib" data-a="sheet-close" aria-label="閉じる"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sstrip" id="sh-strip"></div>
     <div class="sh-b" id="sh-grid"></div>
-    <div class="sh-f"><button class="btn ghost" id="sh-x" data-a="pick-x">X 不明</button><button class="btn ghost" data-a="pick-clear">クリア</button><button class="btn primary" data-a="pick-ok">決定</button></div>
+    <div class="sh-f"><button class="btn ghost" data-a="pick-x">X 不明</button><button class="btn ghost" data-a="pick-clear">クリア</button><button class="btn primary" data-a="pick-ok">決定</button></div>
   </div>
 </div>
 
@@ -223,6 +232,7 @@ textarea.body:focus{border-color:var(--gold)}
       <p id="menu-info"></p>
       <button class="btn primary" data-a="export">データを書き出す（JSON）</button>
       <button class="btn ghost" data-a="import">データを読み込む（JSON）</button>
+      <p id="menu-ver" style="text-align:center"></p>
       <p>メモはこの端末のブラウザ内にだけ保存されます。端末やブラウザのデータを消すとメモも消えるので、ときどき書き出して保管してください。読み込みは今あるメモに追加・更新する形で、消えることはありません。</p>
     </div>
   </div>
@@ -241,6 +251,7 @@ textarea.body:focus{border-color:var(--gold)}
 <script>
 (() => {
 'use strict';
+const VERSION = 'ver.1.1.0';
 const KEY = 'pm_notes';
 const STREETS = [['preflop','プリフロップ'],['flop','フロップ'],['turn','ターン'],['river','リバー']];
 const BOARD_N = {preflop:0, flop:3, turn:4, river:5};
@@ -312,7 +323,6 @@ function tagFreq(){
 let screen = 'list', from = 'list';
 const F = {street:'all', tag:null, q:''};
 let draft = null, draftSnap = '';
-let target = null, pick = null;
 let openTags = null;
 const expanded = new Set();
 
@@ -386,33 +396,18 @@ function renderTags(){
 const emptyDraft = street => ({id:null, street, hand:[null,null], board:[null,null,null,null,null], tags:[], body:''});
 const snap = () => JSON.stringify(draft) + $('#tag-in').value.trim();
 
-function activeSlots(){
-  const s = [['hand',0],['hand',1]];
-  for (let i = 0; i < BOARD_N[draft.street]; i++) s.push(['board', i]);
-  return s;
-}
-function usedCards(except){
-  const u = new Set();
-  activeSlots().forEach(([k,i]) => {
-    if (except && except.k === k && except.i === i) return;
-    const c = draft[k][i];
-    if (c && c !== 'X') u.add(c);
-  });
-  return u;
-}
-
 function renderEditStreet(){
   $('#e-street').innerHTML = STREETS.map(([k,l]) => `<button class="${draft.street===k?'on':''}" data-a="street" data-v="${k}">${l}</button>`).join('');
 }
 function renderEditCards(){
   const n = BOARD_N[draft.street];
-  const slot = (k, i, en, lb) => {
+  const slot = (k, i, lb) => {
     const c = draft[k][i];
-    return `<button class="slot" data-a="slot" data-k="${k}" data-i="${i}" ${en?'':'disabled'} aria-label="${lb}">${en ? (c ? cardEl(c,'') : '<span class="pc empty">＋</span>') : '<span class="pc empty off">—</span>'}</button>`;
+    return `<button class="slot${k === 'board' && i >= n ? ' dim' : ''}" data-a="slot" data-k="${k}" data-i="${i}" aria-label="${lb}">${c ? cardEl(c,'') : '<span class="pc empty">＋</span>'}</button>`;
   };
   $('#e-cards').innerHTML =
-    `<div class="lbrow"><span style="grid-column:span 2">ハンド</span></div><div class="row5">${slot('hand',0,true,'ハンド1枚目')}${slot('hand',1,true,'ハンド2枚目')}</div>` +
-    `<div class="lbrow gap"><span style="grid-column:span 3">フロップ</span><span>ターン</span><span>リバー</span></div><div class="row5">${[0,1,2,3,4].map(i => slot('board', i, i < n, `${SLOT_LB[i]}（${i+1}枚目）`)).join('')}</div>`;
+    `<div class="lbrow"><span style="grid-column:span 2">ハンド</span></div><div class="row5">${slot('hand',0,'ハンド1枚目')}${slot('hand',1,'ハンド2枚目')}</div>` +
+    `<div class="lbrow gap"><span style="grid-column:span 3">フロップ</span><span>ターン</span><span>リバー</span></div><div class="row5">${[0,1,2,3,4].map(i => slot('board', i, `${SLOT_LB[i]}（${i+1}枚目）`)).join('')}</div>`;
 }
 function renderEditTags(){
   $('#e-tagchips').innerHTML = draft.tags.map(t => `<button class="chip tg" data-a="tag-rm" data-v="${esc(t)}" aria-label="${esc(t)}を外す">${esc(t)} <b>×</b></button>`).join('') +
@@ -457,26 +452,54 @@ async function leaveEdit(){
   show(from);
 }
 
-/* ---------- カード選択シート ---------- */
-function sheetTitle(){
-  return target.k === 'hand' ? `ハンド（${target.i+1}枚目）を選択` : `${SLOT_LB[target.i]}（${target.i+1}枚目）を選択`;
+/* ---------- カード選択シート（ハンド2枚・ボード5枚をまとめて入力） ---------- */
+let sheet = null;   // {group:'hand'|'board', slots:[...], cur:選択中の枠}
+const slotLabels = g => g === 'hand' ? ['1枚目','2枚目'] : SLOT_LB;
+function nextEmpty(slots, from){
+  for (let k = 1; k <= slots.length; k++){
+    const i = (from + k) % slots.length;
+    if (slots[i] === null) return i;
+  }
+  return from;
 }
-function openSheet(k, i){
-  target = {k, i}; pick = draft[k][i];
-  $('#sh-title').textContent = sheetTitle();
-  const used = usedCards(target);
+function putCard(c){
+  sheet.slots[sheet.cur] = c;
+  sheet.cur = nextEmpty(sheet.slots, sheet.cur);
+}
+function openSheet(group, i){
+  const slots = draft[group].slice(), empty = slots.indexOf(null);
+  sheet = {group, slots, cur: empty >= 0 ? empty : i};
+  $('#sh-title').textContent = group === 'hand' ? 'ハンド（2枚）を選択' : 'ボード（5枚）を選択';
+  // もう一方のグループ（画面に出ていない枠も含む）で使用済みのカードは選べない
+  const used = new Set(draft[group === 'hand' ? 'board' : 'hand'].filter(c => c && c !== 'X'));
   $('#sh-grid').innerHTML = SUITS.map(([s,sym]) => `<div class="sgrid">${RANKS.map(r => {
     const c = r + s, dis = used.has(c);
     return `<button class="ck s${s}${dis?' dis':''}" data-a="pick" data-c="${c}" ${dis?'disabled':''} aria-label="${r==='T'?'10':r}${sym}">${r==='T'?'10':r}<i>${sym}</i></button>`;
   }).join('')}</div>`).join('');
-  updateSheet();
+  renderSheet();
   $('#sheet-bg').hidden = false;
   $('#sh-grid').scrollTop = 0;
 }
-function updateSheet(){
-  document.querySelectorAll('#sh-grid .ck').forEach(b => b.classList.toggle('sel', b.dataset.c === pick));
-  $('#sh-x').classList.toggle('sel', pick === 'X');
-  $('#sh-pv').innerHTML = pick ? cardEl(pick) : '';
+function renderSheet(){
+  const lb = slotLabels(sheet.group);
+  $('#sh-strip').innerHTML = sheet.slots.map((c, i) =>
+    `<div class="pksw"><button class="pks${i === sheet.cur ? ' cur' : ''}" data-a="sslot" data-i="${i}" aria-label="${lb[i]}">${c ? cardEl(c,'') : '<span class="pc empty">＋</span>'}</button><span>${lb[i]}</span></div>`).join('');
+  document.querySelectorAll('#sh-grid .ck').forEach(b => b.classList.toggle('sel', sheet.slots.includes(b.dataset.c)));
+}
+function commitSheet(){
+  draft[sheet.group] = sheet.slots;
+  if (sheet.group === 'board'){
+    // ストリートより多くカードを入れたときは、ストリートを合わせる（下げることはしない）
+    const n = sheet.slots.reduce((m, c, i) => c ? i + 1 : m, 0);
+    if (n > BOARD_N[draft.street]){
+      draft.street = n >= 5 ? 'river' : n === 4 ? 'turn' : 'flop';
+      renderEditStreet();
+      toast(`ストリートを${streetLabel(draft.street)}にしました`);
+    }
+  }
+  sheet = null;
+  $('#sheet-bg').hidden = true;
+  renderEditCards();
 }
 
 /* ---------- ダイアログ・トースト ---------- */
@@ -515,6 +538,7 @@ const refresh = () => { if (screen === 'list') renderList(); else if (screen ===
 /* ---------- バックアップ ---------- */
 function openMenu(){
   $('#menu-info').textContent = `現在 ${notes.length}件のメモを保存中です。`;
+  $('#menu-ver').textContent = VERSION;
   $('#menu-bg').hidden = false;
 }
 async function exportJson(){
@@ -613,11 +637,16 @@ document.addEventListener('click', async e => {
       if (s){ toast('保存しました'); openEdit(emptyDraft(s.street)); }
       break;
     }
-    case 'pick': pick = pick === el.dataset.c ? null : el.dataset.c; updateSheet(); break;
-    case 'pick-x': pick = pick === 'X' ? null : 'X'; updateSheet(); break;
-    case 'pick-clear': pick = null; updateSheet(); break;
-    case 'pick-ok': draft[target.k][target.i] = pick; $('#sheet-bg').hidden = true; renderEditCards(); break;
-    case 'sheet-close': $('#sheet-bg').hidden = true; break;
+    case 'sslot': sheet.cur = +el.dataset.i; renderSheet(); break;
+    case 'pick': {
+      const c = el.dataset.c, j = sheet.slots.indexOf(c);
+      if (j >= 0){ sheet.slots[j] = null; sheet.cur = j; } else putCard(c);
+      renderSheet(); break;
+    }
+    case 'pick-x': putCard('X'); renderSheet(); break;
+    case 'pick-clear': sheet.slots[sheet.cur] = null; renderSheet(); break;
+    case 'pick-ok': commitSheet(); break;
+    case 'sheet-close': sheet = null; $('#sheet-bg').hidden = true; break;
     case 'grp': {
       openTags.has(v) ? openTags.delete(v) : openTags.add(v); renderTags(); break;
     }
