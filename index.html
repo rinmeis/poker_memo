@@ -32,6 +32,7 @@ svg{display:block}
 .hd{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) 10px calc(env(safe-area-inset-left) + 16px);border-bottom:1px solid var(--line);flex:none}
 .hd .grow{flex:1;min-width:0}
 .hd h1{margin:0;font-size:20px;font-weight:700;letter-spacing:.02em}
+.hd h1 .ver{font-size:12px;font-weight:400;color:var(--muted);letter-spacing:0;margin-left:4px;white-space:nowrap}
 .hd .sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
 .ib{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;color:var(--text)}
 .ib:active{background:var(--panel)}
@@ -170,7 +171,7 @@ textarea.body:focus{border-color:var(--gold)}
 <div id="app">
   <section class="screen" id="s-list" hidden>
     <header class="hd">
-      <div class="grow"><h1>戦略メモ</h1><p class="sub" id="list-count"></p></div>
+      <div class="grow"><h1>戦略メモ <span class="ver" id="hd-ver"></span></h1><p class="sub" id="list-count"></p></div>
       <button class="ib" data-a="search" aria-label="検索"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
       <button class="ib" data-a="menu" aria-label="バックアップ"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
     </header>
@@ -251,7 +252,7 @@ textarea.body:focus{border-color:var(--gold)}
 <script>
 (() => {
 'use strict';
-const VERSION = 'ver.1.1.0';
+const VERSION = 'ver.1.1.1';
 const KEY = 'pm_notes';
 const STREETS = [['preflop','プリフロップ'],['flop','フロップ'],['turn','ターン'],['river','リバー']];
 const BOARD_N = {preflop:0, flop:3, turn:4, river:5};
@@ -684,6 +685,7 @@ $('#e-body').addEventListener('input', e => { draft.body = e.target.value; });
 $('#tag-in').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); commitTag(); } });
 [$('#sheet-bg'), $('#menu-bg')].forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) bg.hidden = true; }));
 
+$('#hd-ver').textContent = VERSION;
 show('list');
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
   navigator.serviceWorker.register('sw.js').catch(() => {});
