@@ -65,7 +65,10 @@ svg{display:block}
 .n-top time{margin-left:auto;font-size:12px;color:var(--muted)}
 .n-cards{display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap}
 .n-cards .sep{width:1px;height:34px;background:var(--line);margin:0 6px}
-.n-body{margin:0;font-size:14px;line-height:1.5;color:#d8e0d9;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;word-break:break-word}
+.n-body{margin:0;font-size:14px;line-height:1.5;color:#d8e0d9;max-height:calc(1.5em * 2);overflow:hidden;white-space:pre-wrap;word-break:break-word}
+.note.expanded .n-body{max-height:none;overflow:visible}
+.n-more{display:flex;align-items:center;justify-content:flex-end;gap:2px;width:100%;min-height:44px;margin-bottom:-12px;padding:0 2px;font-size:13px;color:var(--gold)}
+.n-more svg{width:14px;height:14px}
 .n-body.empty{color:var(--muted)}
 .empty-msg{padding:40px 12px;text-align:center;color:var(--muted);line-height:1.8;font-size:14px}
 
@@ -252,7 +255,7 @@ textarea.body:focus{border-color:var(--gold)}
 <script>
 (() => {
 'use strict';
-const VERSION = 'ver.1.1.1';
+const VERSION = 'ver.1.2.0';
 const KEY = 'pm_notes';
 const STREETS = [['preflop','プリフロップ'],['flop','フロップ'],['turn','ターン'],['river','リバー']];
 const BOARD_N = {preflop:0, flop:3, turn:4, river:5};
@@ -326,6 +329,7 @@ const F = {street:'all', tag:null, q:''};
 let draft = null, draftSnap = '';
 let openTags = null;
 const expanded = new Set();
+const noteExpanded = new Set();   // 全文を広げているメモ(id)。アプリを開いている間だけ保持
 
 /* ---------- 部品 ---------- */
 function cardEl(c, cls = 'sm'){
@@ -347,7 +351,21 @@ function noteHtml(n){
   const b = n.board.filter(Boolean).map(c => cardEl(c)).join('');
   const row = (h || b) ? `<div class="n-cards">${h}${h && b ? '<span class="sep"></span>' : ''}${b}</div>` : '';
   const d = new Date(n.createdAt), p = x => String(x).padStart(2,'0');
-  return `<article class="note" data-a="open" data-id="${esc(n.id)}"><div class="n-top"><span class="st">${streetLabel(n.street)}</span>${n.tags.map(t => `<span class="tgl">${esc(t)}</span>`).join('')}<time>${p(d.getMonth()+1)}/${p(d.getDate())}</time></div>${row}<p class="n-body${n.body.trim()?'':' empty'}">${n.body.trim()?esc(n.body):'（本文なし）'}</p></article>`;
+  return `<article class="note${noteExpanded.has(n.id) ? ' expanded' : ''}" data-a="open" data-id="${esc(n.id)}"><div class="n-top"><span class="st">${streetLabel(n.street)}</span>${n.tags.map(t => `<span class="tgl">${esc(t)}</span>`).join('')}<time>${p(d.getMonth()+1)}/${p(d.getDate())}</time></div>${row}<p class="n-body${n.body.trim()?'':' empty'}">${n.body.trim()?esc(n.body):'（本文なし）'}</p></article>`;
+}
+
+/* 2行に入りきらないメモには、「全文を読む ›」(広げているときは「閉じる」)を付ける
+   表示中でないと測れないので、描画のたびと画面を表示したとき、幅が変わったときに呼ぶ。広げているメモは、測るあいだだけたたむ */
+const moreLabel = open => open ? '閉じる <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>' : '全文を読む ›';
+function markNoteOverflow(){
+  document.querySelectorAll('.note .n-more').forEach(e => e.remove());
+  document.querySelectorAll('.note').forEach(note => {
+    const el = note.querySelector('.n-body'), open = note.classList.contains('expanded');
+    if (open) note.classList.remove('expanded');
+    const over = el.scrollHeight > el.clientHeight + 1;
+    if (open) note.classList.add('expanded');
+    if (over) el.insertAdjacentHTML('afterend', `<button class="n-more" data-a="n-toggle" data-id="${esc(note.dataset.id)}" aria-expanded="${open}">${moreLabel(open)}</button>`);
+  });
 }
 
 /* ---------- 一覧 ---------- */
@@ -372,6 +390,7 @@ function renderList(){
   $('#list-items').innerHTML = items.length ? items.map(noteHtml).join('') :
     `<div class="empty-msg">${notes.length ? '条件に合うメモがありません' : 'まだメモがありません<br>下の「新規メモ」から作成できます'}</div>`;
   $('#nav-list').innerHTML = navHtml('list');
+  markNoteOverflow();
 }
 
 /* ---------- タグ別まとめ ---------- */
@@ -391,6 +410,7 @@ function renderTags(){
       (open ? `<div class="grp-b">${shown.map(noteHtml).join('')}${!all && list.length > 2 ? `<button class="more" data-a="more" data-v="${esc(t)}">他${list.length-2}件を表示</button>` : ''}${t ? `<div class="grp-tools"><button data-a="tag-rename" data-v="${esc(t)}">名前を変更</button><button class="del" data-a="tag-del" data-v="${esc(t)}">タグを削除</button></div>` : ''}</div>` : '') + '</div>';
   }).join('') : `<div class="empty-msg">${notes.length ? '条件に合うメモがありません' : 'まだメモがありません'}</div>`;
   $('#nav-tags').innerHTML = navHtml('tags');
+  markNoteOverflow();
 }
 
 /* ---------- メモ作成 ---------- */
@@ -533,6 +553,7 @@ function show(name){
   if (name === 'list') renderList();
   if (name === 'tags') renderTags();
   ['list','edit','tags'].forEach(n => $('#s-' + n).hidden = n !== name);
+  if (name !== 'edit') markNoteOverflow();
 }
 const refresh = () => { if (screen === 'list') renderList(); else if (screen === 'tags') renderTags(); };
 
@@ -610,6 +631,18 @@ document.addEventListener('click', async e => {
       if (row.hidden){ F.q = ''; $('#q').value = ''; renderList(); } else $('#q').focus();
       break;
     }
+    case 'n-toggle': {
+      const id = el.dataset.id, open = !noteExpanded.has(id);
+      if (open) noteExpanded.add(id); else noteExpanded.delete(id);
+      document.querySelectorAll('.note').forEach(n => {
+        if (n.dataset.id !== id) return;
+        n.classList.toggle('expanded', open);
+        const b = n.querySelector('.n-more');
+        if (b){ b.innerHTML = moreLabel(open); b.setAttribute('aria-expanded', String(open)); }
+      });
+      if (!open) el.closest('.note').scrollIntoView({block:'nearest', behavior:'smooth'});   // 閉じて短くなったとき、メモが画面の外に出ないように
+      break;
+    }
     case 'menu': openMenu(); break;
     case 'menu-close': $('#menu-bg').hidden = true; break;
     case 'export': exportJson(); break;
@@ -618,7 +651,7 @@ document.addEventListener('click', async e => {
     case 'del':
       if (await ask({msg:'このメモを削除しますか？\n元に戻せません。', ok:'削除する', danger:true})){
         const prev = notes;
-        notes = notes.filter(n => n.id !== draft.id);
+        notes = notes.filter(n => n.id !== draft.id); noteExpanded.delete(draft.id);
         try { persist(); } catch(err) { notes = prev; toast('削除できませんでした'); break; }
         toast('削除しました'); show(from);
       }
@@ -686,6 +719,7 @@ $('#tag-in').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preven
 [$('#sheet-bg'), $('#menu-bg')].forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) bg.hidden = true; }));
 
 $('#hd-ver').textContent = VERSION;
+window.addEventListener('resize', () => { if (screen !== 'edit') markNoteOverflow(); });
 show('list');
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
   navigator.serviceWorker.register('sw.js').catch(() => {});
